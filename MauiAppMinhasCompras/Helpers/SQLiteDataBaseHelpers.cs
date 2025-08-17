@@ -1,36 +1,42 @@
-﻿using MauiAppMinhasCompras.Models;
-using SQLite;
+﻿using System.Collections.Generic;      // List<>
+using System.Threading.Tasks;          // Task
+using SQLite;                          // SQLiteAsyncConnection
+using MauiAppMinhasCompras.Models;     // Produto
+
 namespace MauiAppMinhasCompras.Helpers
 {
+    // Centraliza conexão e CRUD
     public class SQLiteDatabaseHelper
     {
-        readonly SQLiteAsyncConnection _conn;
-        public SQLiteDatabaseHelper(string path)
+        private readonly SQLiteAsyncConnection _conn; // Conexão fixa após o construtor
+
+        public SQLiteDatabaseHelper(string path)      // path = arquivo .db3
         {
-            _conn = new SQLiteAsyncConnection(path);
-            _conn.CreateTableAsync<Produto>().Wait();
+            _conn = new SQLiteAsyncConnection(path);  // Abre conexão
+            _conn.CreateTableAsync<Produto>().Wait(); // Garante tabela criada
         }
-        public Task<int> Insert(Produto p)
+
+        // CREATE: insere produto
+        public Task<int> Insert(Produto p) =>
+            _conn.InsertAsync(p);
+
+        // READ: todos os produtos
+        public Task<List<Produto>> GetAll() =>
+            _conn.Table<Produto>().ToListAsync();
+
+        // UPDATE: atualiza por Id (retorna linhas afetadas)
+        public Task<int> Update(Produto p)
         {
-            return _conn.InsertAsync(p);
+            const string sql = @"UPDATE Produto
+                                 SET Descricao = ?, Quantidade = ?, Preco = ?
+                                 WHERE Id = ?";
+            return _conn.ExecuteAsync(sql, p.Descricao, p.Quantidade, p.Preco, p.Id);
+            // Alternativa simples:
+            // return _conn.UpdateAsync(p);
         }
-        public Task<List<Produto>> Update(Produto p)
-        {
-            string sql = "UPDATE Produto SET Descricao=?, Quantidade=?, Preco=? WHERE Id=?";
-            return _conn.QueryAsync<Produto>(sql, p.Descricao, p.Quantidade, p.Preco, p.Id);
-        }
-        public Task<int> Delete(int id)
-        {
-            return _conn.Table<Produto>().DeleteAsync(i => i.Id == id);
-        }
-        public Task<List<Produto>> GetAll()
-        {
-            return _conn.Table<Produto>().ToListAsync();
-        }
-        public Task<List<Produto>> Search(string q)
-        {
-            string sql = "SELECT * Produto WHERE descricao LIKE '%" + q + "%'";
-            return _conn.QueryAsync<Produto>(sql);
-        }
+
+        // DELETE: exclui por Id
+        public Task<int> Delete(int id) =>
+            _conn.Table<Produto>().DeleteAsync(i => i.Id == id);
     }
 }
